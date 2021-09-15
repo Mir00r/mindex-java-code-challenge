@@ -1,12 +1,18 @@
 package com.mindex.challenge.service.impl;
 
 import com.mindex.challenge.dao.EmployeeRepository;
+import com.mindex.challenge.data.Compensation;
+import com.mindex.challenge.data.CompensationDto;
 import com.mindex.challenge.data.Employee;
+import com.mindex.challenge.data.ReportingStructure;
 import com.mindex.challenge.service.EmployeeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -14,8 +20,12 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     private static final Logger LOG = LoggerFactory.getLogger(EmployeeServiceImpl.class);
 
+    private final EmployeeRepository employeeRepository;
+
     @Autowired
-    private EmployeeRepository employeeRepository;
+    public EmployeeServiceImpl(EmployeeRepository employeeRepository) {
+        this.employeeRepository = employeeRepository;
+    }
 
     @Override
     public Employee create(Employee employee) {
@@ -41,9 +51,34 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     @Override
+    public ReportingStructure readReports(String id) {
+        Employee employee = this.read(id);
+        long reportCount = this.countReports(employee.getDirectReports(), 0);
+        ReportingStructure entity = new ReportingStructure();
+        entity.setType(ReportingStructure.class.getSimpleName());
+        entity.setEmployee(employee);
+        entity.setNumberOfReports(reportCount);
+        return entity;
+    }
+
+    @Override
     public Employee update(Employee employee) {
         LOG.debug("Updating employee [{}]", employee);
 
         return employeeRepository.save(employee);
+    }
+
+    @Override
+    public long countReports(List<Employee> directReports, long count) {
+        LOG.debug("Calculating employee reports [{}]", directReports);
+        for (int i = 0; i < directReports.size(); i++) {
+            count += directReports.size();
+            Employee employee = this.read(directReports.get(i).getEmployeeId());
+            if (employee.getDirectReports() != null && employee.getDirectReports().size() > 0) {
+                LOG.debug("Counting reports [{}]", count);
+                countReports(employee.getDirectReports(), count);
+            }
+        }
+        return count;
     }
 }
